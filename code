@@ -1,20 +1,228 @@
-🫀 Heart Disease Prediction System with AI Chatbot
-📌 Overview
+from flask import Flask, render_template, flash, request, session, send_file
+import pickle
+import numpy as np
+import mysql.connector
+import sys
+from keras.preprocessing import image
 
-This project presents an AI-powered healthcare system designed for the early prediction of heart disease using machine learning techniques. By analyzing patient data such as age, blood pressure, and cholesterol levels, the system provides accurate risk assessments to support timely medical decisions.
+app = Flask(__name__)
+app.config['DEBUG']
+app.config['SECRET_KEY'] = '7d441f27d441f27567d441f2b6176a'
 
-⚙️ Key Features
-🔍 Heart Disease Prediction using machine learning models
-🏥 Hospital & Specialist Recommendations based on user needs
-📅 Appointment Management System for scheduling consultations
-💊 Digital Prescription Tracking for organized medical records
-🤖 AI Chatbot powered by NLP and RNN for real-time health guidance
-🛠️ Technologies Used
-Python
-Machine Learning (Scikit-learn / TensorFlow)
-Natural Language Processing (NLP)
-RNN (Recurrent Neural Network)
-Web Framework (Flask / Django)
-🎯 Objective
 
-To build a user-friendly and intelligent healthcare solution that enhances early diagnosis, improves accessibility to medical services, and provides instant health support.
+@app.route("/")
+def homepage():
+    return render_template('index.html')
+
+
+@app.route("/Home")
+def Home():
+    return render_template('index.html')
+
+
+@app.route("/AdminLogin")
+def AdminLogin():
+    return render_template('AdminLogin.html')
+
+
+@app.route("/NewDoctor")
+def NewDoctor():
+    return render_template('NewDoctor.html')
+
+
+@app.route("/DoctorLogin")
+def DoctorLogin():
+    return render_template('DoctorLogin.html')
+
+
+@app.route("/UserLogin")
+def UserLogin():
+    return render_template('UserLogin.html')
+
+
+@app.route("/NewUser")
+def NewUser():
+    return render_template('NewUser.html')
+
+
+@app.route("/AdminHome")
+def AdminHome():
+    conn = mysql.connector.connect(user='root', password='', host='localhost', database='1heartecgandcsvdb')
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM regtb  ")
+    data = cur.fetchall()
+    return render_template('AdminHome.html', data=data)
+
+
+@app.route("/adminlogin", methods=['GET', 'POST'])
+def adminlogin():
+    if request.method == 'POST':
+        if request.form['uname'] == 'admin' and request.form['password'] == 'admin':
+
+            conn = mysql.connector.connect(user='root', password='', host='localhost', database='1heartecgandcsvdb')
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM regtb ")
+            data = cur.fetchall()
+            flash("Login successfully")
+            return render_template('AdminHome.html', data=data)
+
+        else:
+            flash("UserName Or Password Incorrect!")
+            return render_template('AdminLogin.html')
+
+
+@app.route("/DoctorInfo")
+def DoctorInfo():
+    conn = mysql.connector.connect(user='root', password='', host='localhost', database='1heartecgandcsvdb')
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM doctortb  ")
+    data = cur.fetchall()
+    return render_template('DoctorInfo.html', data=data)
+
+
+
+
+
+@app.route("/newdoct", methods=['GET', 'POST'])
+def newdoct():
+    if request.method == 'POST':
+        name = request.form['name']
+        mobile = request.form['mobile']
+
+        email = request.form['email']
+
+        address = request.form['address']
+        specialist = request.form['Specialist']
+
+        uname = request.form['uname']
+        password = request.form['password']
+
+        conn = mysql.connector.connect(user='root', password='', host='localhost', database='1heartecgandcsvdb')
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO doctortb VALUES ('','" + name + "','" + email + "','" + mobile + "','" + address + "','" + specialist + "','" + uname + "','" + password + "')")
+        conn.commit()
+        conn.close()
+        flash('Doctor  Register Successfully')
+        return render_template('DoctorLogin.html')
+
+
+@app.route("/doctlogin", methods=['GET', 'POST'])
+def doctlogin():
+    if request.method == 'POST':
+        username = request.form['uname']
+        password = request.form['password']
+        session['ename'] = request.form['uname']
+
+        conn = mysql.connector.connect(user='root', password='', host='localhost', database='1heartecgandcsvdb')
+        cursor = conn.cursor()
+        cursor.execute("SELECT * from doctortb where username='" + username + "' and Password='" + password + "'")
+        data = cursor.fetchone()
+        if data is None:
+
+            flash('Username or Password is wrong')
+            return render_template('DoctorLogin.html', data=data)
+        else:
+            conn = mysql.connector.connect(user='root', password='', host='localhost', database='1heartecgandcsvdb')
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM doctortb where username='" + username + "' and Password='" + password + "'")
+            data = cur.fetchall()
+            flash("Login successfully")
+            return render_template('DoctorHome.html', data=data)
+
+
+@app.route("/DoctorHome")
+def DoctorHome():
+    username = session['ename']
+    conn = mysql.connector.connect(user='root', password='', host='localhost', database='1heartecgandcsvdb')
+    # cursor = conn.cursor()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM doctortb where username='" + username + "' ")
+    data = cur.fetchall()
+    return render_template('DoctorHome.html', data=data)
+
+
+@app.route("/DAppoitmentInfo")
+def DAppoitmentInfo():
+    username = session['ename']
+    conn = mysql.connector.connect(user='root', password='', host='localhost', database='1heartecgandcsvdb')
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM apptb where DoctorName='" + username + "' and Status='waiting' ")
+    data = cur.fetchall()
+
+    conn = mysql.connector.connect(user='root', password='', host='localhost', database='1heartecgandcsvdb')
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM apptb where DoctorName='" + username + "' and Status='Accept' ")
+    data1 = cur.fetchall()
+
+    return render_template('DAppoitmentInfo.html', data=data, data1=data1)
+
+
+
+
+@app.route("/newuser", methods=['GET', 'POST'])
+def newuser():
+    if request.method == 'POST':
+        name = request.form['name']
+        mobile = request.form['mobile']
+
+        email = request.form['email']
+
+        address = request.form['address']
+
+        uname = request.form['uname']
+        password = request.form['password']
+
+        conn = mysql.connector.connect(user='root', password='', host='localhost', database='1heartecgandcsvdb')
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO regtb VALUES ('','" + name + "','" + email + "','" + mobile + "','" + address + "','" + uname + "','" + password + "')")
+        conn.commit()
+        conn.close()
+        flash('User Register successfully')
+
+    return render_template('UserLogin.html')
+
+
+@app.route("/userlogin", methods=['GET', 'POST'])
+def userlogin():
+    if request.method == 'POST':
+        username = request.form['uname']
+        password = request.form['password']
+        session['uname'] = request.form['uname']
+
+        conn = mysql.connector.connect(user='root', password='', host='localhost', database='1heartecgandcsvdb')
+        cursor = conn.cursor()
+        cursor.execute("SELECT * from regtb where username='" + username + "' and Password='" + password + "'")
+        data = cursor.fetchone()
+        if data is None:
+
+            flash('Username or Password is wrong')
+            return render_template('UserLogin.html')
+        else:
+
+            conn = mysql.connector.connect(user='root', password='', host='localhost', database='1heartecgandcsvdb')
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM regtb where username='" + username + "' and Password='" + password + "'")
+            data = cur.fetchall()
+            flash("Login successfully")
+
+            return render_template('UserHome.html', data=data)
+
+
+@app.route("/UserHome")
+def UserHome():
+    uname = session['uname']
+
+    conn = mysql.connector.connect(user='root', password='', host='localhost', database='1heartecgandcsvdb')
+    # cursor = conn.cursor()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM  regtb where username='" + uname + "'  ")
+    data = cur.fetchall()
+    return render_template('UserHome.html', data=data)
+
+
+
+
+if __name__ == '__main__':
+    app.run(debug=True, use_reloader=True)
